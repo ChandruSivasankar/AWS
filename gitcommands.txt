@@ -1,0 +1,4 @@
+git init
+intiate git in the PWD
+
+git add <filename>
