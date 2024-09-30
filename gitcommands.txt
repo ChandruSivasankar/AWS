@@ -14,3 +14,5 @@ commit:
 git commit -m "comments" - commit all files that are stagged
 
 git commit <filename/dir> -m "comments"
+
+git branch <branchname>
