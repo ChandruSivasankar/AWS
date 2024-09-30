@@ -1,4 +1,16 @@
+init & config
+
 git init
 intiate git in the PWD
 
+stagging:
+
 git add <filename>
+git add <dir> :stage dir and files inside dir
+git add . : stage current file in dir
+
+commit:
+
+git commit -m "comments" - commit all files that are stagged
+
+git commit <filename/dir> -m "comments"
