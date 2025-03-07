@@ -11,7 +11,7 @@ Resources:
   VPCWolfA:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 10.100.0.0/16
+      CidrBlock: 10.0.0.0/16
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
@@ -34,27 +34,52 @@ Resources:
       VpcId: !Ref VPCWolfA
 
   # Public Subnet
-  PublicSubnet:
+  PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPCWolfA
-      CidrBlock: 10.100.0.0/24
+      CidrBlock: 10.0.0.0/24
       AvailabilityZone: us-east-1a
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public-Subnet-WolfA
 
-  # Private Subnet
-  PrivateSubnet:
+
+  PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPCWolfA
-      CidrBlock: 10.100.11.0/24
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: us-east-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public-Subnet-WolfB
+
+
+
+  # Private Subnet
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCWolfA
+      CidrBlock: 10.0.11.0/24
       AvailabilityZone: us-east-1a
       Tags:
         - Key: Name
           Value: Private-Subnet-WolfA
+
+  # Private Subnet
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCWolfA
+      CidrBlock: 10.0.12.0/24
+      AvailabilityZone: us-east-1b
+      Tags:
+        - Key: Name
+          Value: Private-Subnet-WolfB
 
   # Public Route Table
   PublicRouteTable:
@@ -75,10 +100,16 @@ Resources:
       GatewayId: !Ref InternetGateway
 
   # Associate Public Subnet with Public Route Table
-  PublicSubnetRouteTableAssociation:
+  PublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRouteTable
 
   # Private Route Table
@@ -91,10 +122,16 @@ Resources:
           Value: Private-RouteTable-WolfA
 
   # Associate Private Subnet with Private Route Table
-  PrivateSubnetRouteTableAssociation:
+  PrivateSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
       RouteTableId: !Ref PrivateRouteTable
 
   # Security Group for Public Instance
@@ -126,11 +163,15 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 10.100.0.0/16    # SSH from VPC
+          CidrIp: 10.0.0.0/16    # SSH from VPC
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
-          CidrIp: 10.100.0.0/16    # ICMP from VPC
+          CidrIp: 10.0.0.0/16    # ICMP from VPC
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 10.0.0.0/16    # HTTP from VPC
       Tags:
         - Key: Name
           Value: Private-SG-WolfA
@@ -140,8 +181,8 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-05b10e08d247fb927 # Amazon Linux 2 AMI for us-east-1a
-      SubnetId: !Ref PublicSubnet
+      ImageId: ami-0112ec3cb548b65db # Amazon Linux 2 AMI for us-east-1a
+      SubnetId: !Ref PublicSubnetA
       KeyName: !Ref KeyPairName
       SecurityGroupIds:
         - !Ref PublicSecurityGroup
@@ -155,34 +196,66 @@ Resources:
           yum install -y httpd
           systemctl start httpd
           systemctl enable httpd
-          echo "<h1>Welcome to WolfA Public Instance</h1>" > /var/www/html/index.html
+          echo "<h1>Welcome to WolfA Public Instance $(hostname -f)</h1>" > /var/www/html/index.html
 
-  # Private EC2 Instance
-  # PrivateEC2Instance:
-  #   Type: AWS::EC2::Instance
-  #   Properties:
-  #     InstanceType: t2.micro
-  #     ImageId: ami-05b10e08d247fb927 # Amazon Linux 2 AMI for ap-south-1
-  #     SubnetId: !Ref PrivateSubnet
-  #     SecurityGroupIds:
-  #       - !Ref PrivateSecurityGroup
-  #     Tags:
-  #       - Key: Name
-  #         Value: Private-Instance-WolfA
+  #Private EC2 Instance
+  PrivateEC2InstanceA:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0112ec3cb548b65db # Amazon Linux 2 AMI for ap-south-1
+      SubnetId: !Ref PrivateSubnetA
+      SecurityGroupIds:
+        - !Ref PrivateSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Private-Instance-WolfA
 
-Outputs:
-  VPCId:
-    Description: VPC ID
-    Value: !Ref VPCWolfA
-  PublicSubnetId:
-    Description: Public Subnet ID
-    Value: !Ref PublicSubnet
-  PrivateSubnetId:
-    Description: Private Subnet ID
-    Value: !Ref PrivateSubnet
-  PublicInstanceId:
-    Description: Public EC2 Instance ID
-    Value: !Ref PublicEC2Instance
-  PublicInstanceIP:
-    Description: Public Instance IP
-    Value: !GetAtt PublicEC2Instance.PublicIp
+  PrivateEC2InstanceB:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0112ec3cb548b65db # Amazon Linux 2 AMI for ap-south-1
+      SubnetId: !Ref PrivateSubnetB
+      SecurityGroupIds:
+        - !Ref PrivateSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Private-Instance-WolfB
+  #Create Target Group for Private Instances
+  PrivateTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPCWolfA
+      TargetType: instance
+      Targets:
+        - Id: !Ref PrivateEC2InstanceA
+          Port: 80
+        - Id: !Ref PrivateEC2InstanceB
+          Port: 80
+  
+  #Create Application Load Balancer for Target Group
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: WolfALB
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      SecurityGroups:
+        - !GetAtt [PublicSecurityGroup, GroupId]
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Tags:
+        - Key: Name
+          Value: WolfALB
